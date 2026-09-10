@@ -1,12 +1,23 @@
 ---
 name: claude-to-deerflow
-description: "Interact with DeerFlow AI agent platform via its HTTP API. Use this skill when the user wants to send messages or questions to DeerFlow for research/analysis, start a DeerFlow conversation thread, check DeerFlow status or health, list available models/skills/agents in DeerFlow, manage DeerFlow memory, upload files to DeerFlow threads, or delegate complex research tasks to DeerFlow. Also use when the user mentions deerflow, deer flow, or wants to run a deep research task that DeerFlow can handle."
+description: "Use from an external shell or coding agent to interact with a separate running DeerFlow instance via HTTP. Do not use from an active DeerFlow conversation or subagent: use the built-in task tool for delegation there."
 ---
 
 # DeerFlow Skill
 
 Communicate with a running DeerFlow instance via its HTTP API. DeerFlow is an AI agent platform
 built on LangGraph that orchestrates sub-agents for research, code execution, web browsing, and more.
+
+## Scope
+
+This is an **external-client** skill. It is for a shell or coding agent outside
+the DeerFlow instance that it is calling.
+
+Do **not** use it while you are already executing as a DeerFlow lead agent or
+subagent. Calling DeerFlow from its own agent creates a nested thread and can
+duplicate or interrupt delegation. For a user request in the current DeerFlow
+conversation, delegate directly with the built-in `task` tool and select the
+configured `researcher` subagent.
 
 ## Architecture
 
