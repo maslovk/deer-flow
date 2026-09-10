@@ -61,6 +61,25 @@ def test_codex_provider_flattens_structured_text_blocks(monkeypatch):
     assert input_items == [{"role": "user", "content": "Hello from blocks"}]
 
 
+def test_codex_provider_uses_low_reasoning_when_thinking_is_disabled(monkeypatch):
+    monkeypatch.setattr(
+        CodexChatModel,
+        "_load_codex_auth",
+        lambda self: CodexCliCredential(access_token="token", account_id="acct"),
+    )
+    captured: dict = {}
+    model = CodexChatModel(reasoning_effort="none")
+
+    def capture_request(_headers, payload):
+        captured.update(payload)
+        return {"model": "gpt-6-astra", "output": [], "usage": {}}
+
+    monkeypatch.setattr(model, "_stream_response", capture_request)
+    model._call_codex_api([HumanMessage(content="Hello")])
+
+    assert captured["reasoning"] == {"effort": "low", "summary": "detailed"}
+
+
 def test_claude_provider_rejects_non_positive_retry_attempts():
     with pytest.raises(ValueError, match="retry_max_attempts must be >= 1"):
         ClaudeChatModel(model="claude-sonnet-4-6", retry_max_attempts=0)

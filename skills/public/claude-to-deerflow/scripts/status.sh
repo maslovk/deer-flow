@@ -12,21 +12,31 @@
 #
 # Environment variables:
 #   DEERFLOW_URL           — Unified proxy base URL (default: http://localhost:2026)
-#   DEERFLOW_GATEWAY_URL   — Gateway API base URL (default: $DEERFLOW_URL)
-#   DEERFLOW_LANGGRAPH_URL — LangGraph API base URL (default: $DEERFLOW_URL/api/langgraph)
+#   DEERFLOW_GATEWAY_URL   — Gateway API base URL (overrides all defaults)
+#   DEERFLOW_LANGGRAPH_URL — LangGraph API base URL (overrides all defaults)
+#   DEER_FLOW_CHANNELS_GATEWAY_URL / DEER_FLOW_CHANNELS_LANGGRAPH_URL
+#                          — Internal Docker service URLs, used when available
 
 set -euo pipefail
 
-DEERFLOW_URL="${DEERFLOW_URL:-http://localhost:2026}"
-GATEWAY_URL="${DEERFLOW_GATEWAY_URL:-$DEERFLOW_URL}"
-LANGGRAPH_URL="${DEERFLOW_LANGGRAPH_URL:-$DEERFLOW_URL/api/langgraph}"
+if [ -n "${DEERFLOW_URL:-}" ]; then
+  DEFAULT_GATEWAY_URL="$DEERFLOW_URL"
+  DEFAULT_LANGGRAPH_URL="$DEERFLOW_URL/api/langgraph"
+else
+  DEERFLOW_URL="http://localhost:2026"
+  DEFAULT_GATEWAY_URL="${DEER_FLOW_CHANNELS_GATEWAY_URL:-$DEERFLOW_URL}"
+  DEFAULT_LANGGRAPH_URL="${DEER_FLOW_CHANNELS_LANGGRAPH_URL:-$DEERFLOW_URL/api/langgraph}"
+fi
+GATEWAY_URL="${DEERFLOW_GATEWAY_URL:-$DEFAULT_GATEWAY_URL}"
+LANGGRAPH_URL="${DEERFLOW_LANGGRAPH_URL:-$DEFAULT_LANGGRAPH_URL}"
 CMD="${1:-health}"
 ARG="${2:-}"
 
 case "$CMD" in
   health)
     echo "Checking DeerFlow at ${GATEWAY_URL}..."
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${GATEWAY_URL}/health" 2>/dev/null || echo "000")
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${GATEWAY_URL}/health" 2>/dev/null || true)
+    HTTP_CODE="${HTTP_CODE:-000}"
     if [ "$HTTP_CODE" = "000" ]; then
       echo "UNREACHABLE — DeerFlow is not running at ${GATEWAY_URL}"
       exit 1

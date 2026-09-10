@@ -9,22 +9,46 @@
 #
 # Environment variables:
 #   DEERFLOW_URL          — Unified proxy base URL (default: http://localhost:2026)
-#   DEERFLOW_GATEWAY_URL  — Gateway API base URL (default: $DEERFLOW_URL)
-#   DEERFLOW_LANGGRAPH_URL — LangGraph API base URL (default: $DEERFLOW_URL/api/langgraph)
+#   DEERFLOW_GATEWAY_URL  — Gateway API base URL (overrides all defaults)
+#   DEERFLOW_LANGGRAPH_URL — LangGraph API base URL (overrides all defaults)
+#   DEER_FLOW_CHANNELS_GATEWAY_URL / DEER_FLOW_CHANNELS_LANGGRAPH_URL
+#                         — Internal Docker service URLs, used when available
 #
-# Modes: flash, standard, pro (default), ultra
+# Modes: flash, standard, pro, ultra (default; enables subagents)
 
 set -euo pipefail
 
-DEERFLOW_URL="${DEERFLOW_URL:-http://localhost:2026}"
-GATEWAY_URL="${DEERFLOW_GATEWAY_URL:-$DEERFLOW_URL}"
-LANGGRAPH_URL="${DEERFLOW_LANGGRAPH_URL:-$DEERFLOW_URL/api/langgraph}"
+# When this skill runs through DeerFlow's local sandbox, it inherits the
+# gateway container environment.  localhost:2026 is then wrong: nginx runs in
+# a separate container.  Reuse the internal service URLs that Compose provides
+# to the gateway.  An explicitly supplied DEERFLOW_URL remains authoritative
+# for callers outside DeerFlow.
+if [ -n "${DEERFLOW_URL:-}" ]; then
+  DEFAULT_GATEWAY_URL="$DEERFLOW_URL"
+  DEFAULT_LANGGRAPH_URL="$DEERFLOW_URL/api/langgraph"
+else
+  DEERFLOW_URL="http://localhost:2026"
+  DEFAULT_GATEWAY_URL="${DEER_FLOW_CHANNELS_GATEWAY_URL:-$DEERFLOW_URL}"
+  DEFAULT_LANGGRAPH_URL="${DEER_FLOW_CHANNELS_LANGGRAPH_URL:-$DEERFLOW_URL/api/langgraph}"
+fi
+GATEWAY_URL="${DEERFLOW_GATEWAY_URL:-$DEFAULT_GATEWAY_URL}"
+LANGGRAPH_URL="${DEERFLOW_LANGGRAPH_URL:-$DEFAULT_LANGGRAPH_URL}"
 MESSAGE="${1:?Usage: chat.sh <message> [thread_id] [mode]}"
 THREAD_ID="${2:-}"
-MODE="${3:-pro}"
+MODE="${3:-ultra}"
+
+# Gateway uses double-submit CSRF protection for mutating API calls.  This
+# script is a non-browser client, so mint and echo a token for its own calls.
+CSRF_TOKEN=$(python3 -c 'import secrets; print(secrets.token_urlsafe(64))')
+CSRF_ARGS=(-H "X-CSRF-Token: ${CSRF_TOKEN}" -b "csrf_token=${CSRF_TOKEN}")
+INTERNAL_AUTH_ARGS=()
+if [ -n "${DEER_FLOW_INTERNAL_AUTH_TOKEN:-}" ]; then
+  INTERNAL_AUTH_ARGS=(-H "X-DeerFlow-Internal-Token: ${DEER_FLOW_INTERNAL_AUTH_TOKEN}")
+fi
 
 # --- Health check ---
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${GATEWAY_URL}/health" 2>/dev/null || echo "000")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${GATEWAY_URL}/health" 2>/dev/null || true)
+HTTP_CODE="${HTTP_CODE:-000}"
 if [ "$HTTP_CODE" = "000" ] || [ "$HTTP_CODE" -ge 400 ]; then
   echo "ERROR: DeerFlow is not reachable at ${GATEWAY_URL} (HTTP ${HTTP_CODE})" >&2
   echo "Make sure DeerFlow is running. Start it with: cd <deerflow-dir> && make dev" >&2
@@ -35,6 +59,8 @@ fi
 if [ -z "$THREAD_ID" ]; then
   THREAD_RESP=$(curl -s -X POST "${LANGGRAPH_URL}/threads" \
     -H "Content-Type: application/json" \
+    "${CSRF_ARGS[@]}" \
+    "${INTERNAL_AUTH_ARGS[@]}" \
     -d '{}')
   THREAD_ID=$(echo "$THREAD_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['thread_id'])" 2>/dev/null)
   if [ -z "$THREAD_ID" ]; then
@@ -96,6 +122,8 @@ trap "rm -f '$TMPFILE'" EXIT
 
 curl -s -N -X POST "${LANGGRAPH_URL}/threads/${THREAD_ID}/runs/stream" \
   -H "Content-Type: application/json" \
+  "${CSRF_ARGS[@]}" \
+  "${INTERNAL_AUTH_ARGS[@]}" \
   -d "$BODY" > "$TMPFILE"
 
 # Parse the SSE output: extract the last "event: values" data block and get the final AI message

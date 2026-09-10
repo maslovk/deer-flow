@@ -24,16 +24,26 @@ All URLs are configurable via environment variables. **Read these env vars befor
 | Variable                | Default                                  | Description                        |
 |-------------------------|------------------------------------------|------------------------------------|
 | `DEERFLOW_URL`          | `http://localhost:2026`                  | Unified proxy base URL             |
-| `DEERFLOW_GATEWAY_URL`  | `${DEERFLOW_URL}`                        | Gateway API base (models, skills, memory, uploads) |
-| `DEERFLOW_LANGGRAPH_URL`| `${DEERFLOW_URL}/api/langgraph`          | LangGraph API base (threads, runs) |
+| `DEERFLOW_GATEWAY_URL`  | `${DEERFLOW_URL}`                        | Gateway API base; overrides all defaults |
+| `DEERFLOW_LANGGRAPH_URL`| `${DEERFLOW_URL}/api/langgraph`          | LangGraph API base; overrides all defaults |
+| `DEER_FLOW_CHANNELS_GATEWAY_URL` | Used when the skill runs in Docker | Internal Gateway URL, normally `http://gateway:8001` |
+| `DEER_FLOW_CHANNELS_LANGGRAPH_URL` | Used when the skill runs in Docker | Internal LangGraph URL, normally `http://gateway:8001/api` |
+| `DEER_FLOW_INTERNAL_AUTH_TOKEN` | Optional for standalone calls | Gateway internal-auth token |
 
 When making curl calls, always resolve the URL like this:
 
 ```bash
 # Resolve base URLs from env (do this FIRST before any API call)
-DEERFLOW_URL="${DEERFLOW_URL:-http://localhost:2026}"
-DEERFLOW_GATEWAY_URL="${DEERFLOW_GATEWAY_URL:-$DEERFLOW_URL}"
-DEERFLOW_LANGGRAPH_URL="${DEERFLOW_LANGGRAPH_URL:-$DEERFLOW_URL/api/langgraph}"
+if [ -n "${DEERFLOW_URL:-}" ]; then
+  DEFAULT_GATEWAY_URL="$DEERFLOW_URL"
+  DEFAULT_LANGGRAPH_URL="$DEERFLOW_URL/api/langgraph"
+else
+  DEERFLOW_URL="http://localhost:2026"
+  DEFAULT_GATEWAY_URL="${DEER_FLOW_CHANNELS_GATEWAY_URL:-$DEERFLOW_URL}"
+  DEFAULT_LANGGRAPH_URL="${DEER_FLOW_CHANNELS_LANGGRAPH_URL:-$DEERFLOW_URL/api/langgraph}"
+fi
+DEERFLOW_GATEWAY_URL="${DEERFLOW_GATEWAY_URL:-$DEFAULT_GATEWAY_URL}"
+DEERFLOW_LANGGRAPH_URL="${DEERFLOW_LANGGRAPH_URL:-$DEFAULT_LANGGRAPH_URL}"
 ```
 
 ## Available Operations
@@ -105,7 +115,7 @@ Key event types:
 - Flash mode: `thinking_enabled: false, is_plan_mode: false, subagent_enabled: false`
 - Standard mode: `thinking_enabled: true, is_plan_mode: false, subagent_enabled: false`
 - Pro mode: `thinking_enabled: true, is_plan_mode: true, subagent_enabled: false`
-- Ultra mode: `thinking_enabled: true, is_plan_mode: true, subagent_enabled: true`
+- Ultra mode (the helper script default): `thinking_enabled: true, is_plan_mode: true, subagent_enabled: true`
 
 ### 3. Continue a Conversation
 
@@ -191,9 +201,10 @@ bash /path/to/skills/claude-to-deerflow/scripts/chat.sh "Your question here"
 
 See `scripts/chat.sh` for the implementation. The script:
 1. Checks health
-2. Creates a thread
-3. Streams the run and collects the final AI response
-4. Prints the result
+2. Supplies the CSRF cookie/header pair required by Gateway POST routes
+3. Creates a thread
+4. Streams the run and collects the final AI response
+5. Prints the result
 
 ## Parsing SSE Output
 

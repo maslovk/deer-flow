@@ -206,13 +206,18 @@ class CodexChatModel(BaseChatModel):
         """Call the Codex Responses API and return the completed response."""
         instructions, input_items = self._convert_messages(messages)
 
+        # ChatGPT Codex's current GPT-6 models reject ``none``.  DeerFlow
+        # passes that value when its thinking UI toggle is off, so use the
+        # lowest supported effort while retaining a valid Responses payload.
+        reasoning_effort = "low" if self.reasoning_effort == "none" else self.reasoning_effort
+
         payload = {
             "model": self.model,
             "instructions": instructions,
             "input": input_items,
             "store": False,
             "stream": True,
-            "reasoning": {"effort": self.reasoning_effort, "summary": "detailed"} if self.reasoning_effort != "none" else {"effort": "none"},
+            "reasoning": {"effort": reasoning_effort, "summary": "detailed"},
         }
 
         if tools:
@@ -252,7 +257,15 @@ class CodexChatModel(BaseChatModel):
 
         with httpx.Client(timeout=300) as client:
             with client.stream("POST", f"{CODEX_BASE_URL}/responses", headers=headers, json=payload) as resp:
-                resp.raise_for_status()
+                try:
+                    resp.raise_for_status()
+                except httpx.HTTPStatusError:
+                    # The backend returns the actionable validation reason in
+                    # its response body.  Do not log request headers, which
+                    # carry the CLI OAuth credential.
+                    error_body = resp.read().decode("utf-8", errors="replace")
+                    logger.error("Codex API rejected the request (%s): %s", resp.status_code, error_body[:2000])
+                    raise
                 for line in resp.iter_lines():
                     data = self._parse_sse_data_line(line)
                     if not data:
