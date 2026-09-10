@@ -19,6 +19,10 @@ duplicate or interrupt delegation. For a user request in the current DeerFlow
 conversation, delegate directly with the built-in `task` tool and select the
 configured `researcher` subagent.
 
+`chat.sh` enforces this rule when it detects the DeerFlow gateway environment.
+For an intentional in-process diagnostic call only, set
+`DEERFLOW_ALLOW_IN_PROCESS=1` explicitly.
+
 ## Architecture
 
 DeerFlow exposes two API surfaces behind an Nginx reverse proxy:
@@ -208,6 +212,13 @@ For sending messages and collecting the full response, use the helper script:
 
 ```bash
 bash /path/to/skills/claude-to-deerflow/scripts/chat.sh "Your question here"
+```
+
+The optional mode can be given after an empty thread ID or directly as the
+second argument:
+
+```bash
+bash /path/to/skills/claude-to-deerflow/scripts/chat.sh "Your question" ultra
 ```
 
 See `scripts/chat.sh` for the implementation. The script:

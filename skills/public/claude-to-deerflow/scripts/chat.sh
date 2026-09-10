@@ -18,6 +18,14 @@
 
 set -euo pipefail
 
+# This helper is for callers outside DeerFlow.  Invoking it from a lead agent
+# creates a second nested thread, whose lifecycle is coupled to the parent
+# tool call.  Use the built-in task tool for in-process delegation instead.
+if [ -n "${DEER_FLOW_PROJECT_ROOT:-}" ] && [ "${DEERFLOW_ALLOW_IN_PROCESS:-}" != "1" ]; then
+  echo "ERROR: chat.sh cannot run from inside DeerFlow. Use the built-in task tool to delegate to a subagent." >&2
+  exit 2
+fi
+
 # When this skill runs through DeerFlow's local sandbox, it inherits the
 # gateway container environment.  localhost:2026 is then wrong: nginx runs in
 # a separate container.  Reuse the internal service URLs that Compose provides
@@ -36,6 +44,13 @@ LANGGRAPH_URL="${DEERFLOW_LANGGRAPH_URL:-$DEFAULT_LANGGRAPH_URL}"
 MESSAGE="${1:?Usage: chat.sh <message> [thread_id] [mode]}"
 THREAD_ID="${2:-}"
 MODE="${3:-ultra}"
+
+# Accommodate the natural ``chat.sh 'question' ultra`` spelling.  Without
+# this, ultra is interpreted as a thread ID and produces /threads/ultra 404.
+if [ -z "${3:-}" ] && [[ "$THREAD_ID" =~ ^(flash|standard|pro|ultra)$ ]]; then
+  MODE="$THREAD_ID"
+  THREAD_ID=""
+fi
 
 # Gateway uses double-submit CSRF protection for mutating API calls.  This
 # script is a non-browser client, so mint and echo a token for its own calls.
