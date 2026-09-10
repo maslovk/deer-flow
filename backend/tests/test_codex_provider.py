@@ -23,7 +23,7 @@ def _make_model(**kwargs):
 
     cred = CodexCliCredential(access_token="tok-test", account_id="acc-test")
     with patch("deerflow.models.openai_codex_provider.load_codex_cli_credential", return_value=cred):
-        return CodexChatModel(model="gpt-5.4", reasoning_effort="medium", **kwargs)
+        return CodexChatModel(model="gpt-6-astra", reasoning_effort="medium", **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -37,6 +37,16 @@ def test_is_lc_serializable_returns_true():
     assert CodexChatModel.is_lc_serializable() is True
 
 
+def test_default_model_is_supported_chatgpt_codex_model():
+    from deerflow.models.openai_codex_provider import CodexChatModel
+
+    cred = CodexCliCredential(access_token="tok-test", account_id="acc-test")
+    with patch("deerflow.models.openai_codex_provider.load_codex_cli_credential", return_value=cred):
+        model = CodexChatModel()
+
+    assert model.model == "gpt-6-astra"
+
+
 def test_to_json_produces_constructor_type():
     model = _make_model()
     result = model.to_json()
@@ -47,7 +57,7 @@ def test_to_json_produces_constructor_type():
 def test_to_json_contains_model_and_reasoning_effort():
     model = _make_model()
     result = model.to_json()
-    assert result["kwargs"]["model"] == "gpt-5.4"
+    assert result["kwargs"]["model"] == "gpt-6-astra"
     assert result["kwargs"]["reasoning_effort"] == "medium"
 
 
@@ -76,7 +86,7 @@ def test_parse_response_text_content():
             }
         ],
         "usage": {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
-        "model": "gpt-5.4",
+        "model": "gpt-6-astra",
     }
     result = model._parse_response(response)
     assert result.generations[0].message.content == "Hello world"
@@ -98,7 +108,7 @@ def test_parse_response_populates_usage_metadata():
             "input_tokens_details": {"cached_tokens": 3},
             "output_tokens_details": {"reasoning_tokens": 2},
         },
-        "model": "gpt-5.4",
+        "model": "gpt-6-astra",
     }
 
     result = model._parse_response(response)

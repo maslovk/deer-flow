@@ -45,10 +45,10 @@ CLI-backed provider examples:
 
 ```yaml
 models:
-  - name: gpt-5.4
-    display_name: GPT-5.4 (Codex CLI)
+  - name: gpt-6-astra
+    display_name: GPT-6 Astra (Codex CLI)
     use: deerflow.models.openai_codex_provider:CodexChatModel
-    model: gpt-5.4
+    model: gpt-6-astra
     supports_thinking: true
     supports_reasoning_effort: true
 

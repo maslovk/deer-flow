@@ -101,7 +101,7 @@ def test_codex_provider_marks_invalid_tool_call_arguments(monkeypatch):
     model = CodexChatModel()
     result = model._parse_response(
         {
-            "model": "gpt-5.4",
+            "model": "gpt-6-astra",
             "output": [
                 {
                     "type": "function_call",
@@ -134,7 +134,7 @@ def test_codex_provider_parses_valid_tool_arguments(monkeypatch):
     model = CodexChatModel()
     result = model._parse_response(
         {
-            "model": "gpt-5.4",
+            "model": "gpt-6-astra",
             "output": [
                 {
                     "type": "function_call",
@@ -190,7 +190,7 @@ def test_codex_provider_merges_streamed_output_items_when_completed_output_is_em
 
     lines = [
         'data: {"type":"response.output_item.done","output_index":0,"item":{"type":"message","content":[{"type":"output_text","text":"Hello from stream"}]}}',
-        'data: {"type":"response.completed","response":{"model":"gpt-5.4","output":[],"usage":{"input_tokens":1,"output_tokens":2,"total_tokens":3}}}',
+        'data: {"type":"response.completed","response":{"model":"gpt-6-astra","output":[],"usage":{"input_tokens":1,"output_tokens":2,"total_tokens":3}}}',
     ]
 
     monkeypatch.setattr(
@@ -222,7 +222,7 @@ def test_codex_provider_orders_streamed_output_items_by_output_index(monkeypatch
     lines = [
         'data: {"type":"response.output_item.done","output_index":1,"item":{"type":"message","content":[{"type":"output_text","text":"Second"}]}}',
         'data: {"type":"response.output_item.done","output_index":0,"item":{"type":"message","content":[{"type":"output_text","text":"First"}]}}',
-        'data: {"type":"response.completed","response":{"model":"gpt-5.4","output":[],"usage":{}}}',
+        'data: {"type":"response.completed","response":{"model":"gpt-6-astra","output":[],"usage":{}}}',
     ]
 
     monkeypatch.setattr(
@@ -249,7 +249,7 @@ def test_codex_provider_preserves_completed_output_when_stream_only_has_placehol
 
     lines = [
         'data: {"type":"response.output_item.added","output_index":0,"item":{"type":"message","status":"in_progress","content":[]}}',
-        'data: {"type":"response.completed","response":{"model":"gpt-5.4","output":[{"type":"message","content":[{"type":"output_text","text":"Final from completed"}]}],"usage":{}}}',
+        'data: {"type":"response.completed","response":{"model":"gpt-6-astra","output":[{"type":"message","content":[{"type":"output_text","text":"Final from completed"}]}],"usage":{}}}',
     ]
 
     monkeypatch.setattr(

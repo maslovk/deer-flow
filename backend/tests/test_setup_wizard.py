@@ -56,6 +56,17 @@ class TestProviders:
         assert providers["deepseek"].use == "deerflow.models.patched_deepseek:PatchedChatDeepSeek"
         assert providers["volcengine"].extra_config["api_base"] == "https://ark.cn-beijing.volces.com/api/v3"
 
+    def test_codex_provider_uses_supported_chatgpt_catalog(self):
+        provider = next(p for p in LLM_PROVIDERS if p.name == "codex")
+
+        assert provider.models == [
+            "gpt-6-astra",
+            "gpt-5.6-sol",
+            "gpt-5.6-terra",
+            "gpt-5.6-luna",
+        ]
+        assert provider.default_model == "gpt-6-astra"
+
     def test_minimax_vision_is_per_model(self):
         """M3 supports vision; M2.7 variants are text-only.
 
@@ -285,7 +296,7 @@ class TestBuildMinimalConfig:
     def test_cli_provider_does_not_emit_fake_api_key(self):
         content = build_minimal_config(
             provider_use="deerflow.models.openai_codex_provider:CodexChatModel",
-            model_name="gpt-5.4",
+            model_name="gpt-6-astra",
             display_name="Codex CLI",
             api_key_field="api_key",
             env_var=None,

@@ -154,7 +154,7 @@ class TestCheckLLMApiKey:
 class TestCheckLLMAuth:
     def test_codex_auth_file_missing_fails(self, tmp_path, monkeypatch):
         cfg = tmp_path / "config.yaml"
-        cfg.write_text("config_version: 5\nmodels:\n  - name: codex\n    use: deerflow.models.openai_codex_provider:CodexChatModel\n    model: gpt-5.4\n")
+        cfg.write_text("config_version: 5\nmodels:\n  - name: codex\n    use: deerflow.models.openai_codex_provider:CodexChatModel\n    model: gpt-6-astra\n")
         monkeypatch.setenv("CODEX_AUTH_PATH", str(tmp_path / "missing-auth.json"))
         results = doctor.check_llm_auth(cfg)
         assert any(result.status == "fail" and "Codex CLI auth available" in result.label for result in results)
